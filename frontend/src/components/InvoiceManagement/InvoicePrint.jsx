@@ -18,11 +18,10 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        }).replace(/ /g, '-');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
     };
 
     function convertNumberToWords(amount) {
@@ -182,7 +181,7 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
                     <tbody>
                         {invoice.products.map((item, index) => (
                             <tr key={index}>
-                                <td>{item.product?.name} {item.product?.description ? `- ${item.product.description}` : ''}</td>
+                                <td style={{ whiteSpace: 'pre-wrap' }}>{item.product?.name} {item.product?.description ? `- ${item.product.description}` : ''}</td>
                                 <td className="col-qty">{item.quantity}</td>
                                 <td className="col-price">{formatCurrency(item.unitPrice)}</td>
                                 <td className="col-amount">{formatCurrency(item.amount)}</td>
