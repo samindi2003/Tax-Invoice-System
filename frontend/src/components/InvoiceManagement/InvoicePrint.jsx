@@ -66,7 +66,7 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
             margin:       0, // CSS already handles the padding
             filename:     `Invoice-${invoice.invoiceNo}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
+            html2canvas:  { scale: 2, useCORS: true, windowWidth: 1024 },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
@@ -169,32 +169,34 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
                     </div>
                 </div>
 
-                <table className="print-table">
-                    <thead>
-                        <tr>
-                            <th className="col-desc">Description of Good or Service</th>
-                            <th className="col-qty">Quantity</th>
-                            <th className="col-price">Unit Price</th>
-                            <th className="col-amount">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {invoice.products.map((item, index) => (
-                            <tr key={index}>
-                                <td style={{ whiteSpace: 'pre-wrap' }}>{item.product?.name} {item.product?.description ? `- ${item.product.description}` : ''}</td>
-                                <td className="col-qty">{item.quantity}</td>
-                                <td className="col-price">{formatCurrency(item.unitPrice)}</td>
-                                <td className="col-amount">{formatCurrency(item.amount)}</td>
+                <div className="table-responsive">
+                    <table className="print-table">
+                        <thead>
+                            <tr>
+                                <th className="col-desc">Description of Good or Service</th>
+                                <th className="col-qty">Quantity</th>
+                                <th className="col-price">Unit Price</th>
+                                <th className="col-amount">Amount</th>
                             </tr>
-                        ))}
-                        <tr className="empty-row-stretch">
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {invoice.products.map((item, index) => (
+                                <tr key={index}>
+                                    <td style={{ whiteSpace: 'pre-wrap' }}>{item.product?.name} {item.product?.description ? `- ${item.product.description}` : ''}</td>
+                                    <td className="col-qty">{item.quantity}</td>
+                                    <td className="col-price">{formatCurrency(item.unitPrice)}</td>
+                                    <td className="col-amount">{formatCurrency(item.amount)}</td>
+                                </tr>
+                            ))}
+                            <tr className="empty-row-stretch">
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <div className="print-totals-wrapper">
                     <div className="print-totals-row">
