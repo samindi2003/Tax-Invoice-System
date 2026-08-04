@@ -88,14 +88,14 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
             </div>
 
             <div className="print-document">
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                    <div style={{ flex: 1, textAlign: 'left' }}>
+                <div className="print-header-flex">
+                    <div className="print-logo-col">
                         <img src="/logo.png.jpeg" alt="Company Logo" style={{ maxHeight: '80px', objectFit: 'contain' }} />
                     </div>
-                    <div className="print-title-container" style={{ flex: 1, marginBottom: 0 }}>
+                    <div className="print-title-container">
                         <div className="print-title">TAX INVOICE</div>
                     </div>
-                    <div style={{ flex: 1 }}></div>
+                    <div className="print-empty-col"></div>
                 </div>
 
                 <div className="print-grid">
