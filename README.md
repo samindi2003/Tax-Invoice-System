@@ -6,6 +6,7 @@ A full-stack web application designed for generating, managing, and printing pro
 - Create, view, and manage tax invoices
 - Maintain a database of customers and products
 - Professional, printable PDF invoice templates (with dedicated space for company seals and signatures)
+- Fully mobile-responsive interface for managing and printing invoices on the go
 - Dashboard for tracking revenue and VAT summaries
 
 ## Technologies Used
