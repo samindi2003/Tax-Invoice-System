@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import CustomerList from './components/CustomerManagement/CustomerList';
 import ProductList from './components/ProductManagement/ProductList';
 import CompanyProfile from './components/Settings/CompanyProfile';
+import CompanyList from './components/CompanyManagement/CompanyList';
+import CompanySelector from './components/CompanyManagement/CompanySelector';
 import Login from './components/Auth/Login';
 import UserProfile from './components/Admin/UserProfile';
 import ChangePassword from './components/Admin/ChangePassword';
@@ -13,7 +15,8 @@ import './index.css';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState('companies'); // Start on companies if no active company
+  const [activeCompanyId, setActiveCompanyId] = useState(localStorage.getItem('activeCompanyId') || null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const dropdownRef = useRef(null);
@@ -64,6 +67,8 @@ function App() {
     switch (activeView) {
       case 'dashboard':
         return <Dashboard setActiveView={setActiveView} />;
+      case 'companies':
+        return <CompanyList setActiveCompanyId={setActiveCompanyId} />;
       case 'customers':
         return <CustomerList />;
       case 'products':
@@ -102,6 +107,15 @@ function App() {
           >
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeView === 'companies' ? 'active' : ''}`}
+            onClick={() => setActiveView('companies')}
+            style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit' }}
+          >
+            <Building size={20} />
+            <span>Companies</span>
           </button>
           
           <button 
@@ -145,8 +159,12 @@ function App() {
       {/* Main Content Area */}
       <main className="main-content">
         <header className="topbar glass">
-          <div className="search-bar">
+          <div className="search-bar flex items-center gap-4">
             <input type="text" placeholder="Search..." className="input-field" />
+            <CompanySelector />
+            {!activeCompanyId && (
+               <span className="text-red-500 text-sm font-bold ml-4">Please select a company to proceed!</span>
+            )}
           </div>
           <div className="user-profile" ref={dropdownRef}>
             <div 

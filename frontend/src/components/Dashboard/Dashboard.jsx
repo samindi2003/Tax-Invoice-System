@@ -149,9 +149,14 @@ const Dashboard = ({ setActiveView }) => {
                             <FileText size={24} />
                         </div>
                     </div>
-                    <p className="text-muted text-sm">
-                        Total invoices generated to date
-                    </p>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                        <p className="text-sm" style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span>Paid: {metrics.paidInvoices || 0}</span>
+                        </p>
+                        <p className="text-sm" style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span>Pending: {metrics.pendingInvoices || 0}</span>
+                        </p>
+                    </div>
                 </div>
 
                 {/* Customers Card */}

@@ -9,10 +9,15 @@ const ProductForm = ({ currentProduct, setEditing, fetchProducts }) => {
         poNumber: currentProduct ? currentProduct.poNumber || '' : '',
         description: currentProduct ? currentProduct.description : '',
         unitPrice: currentProduct ? currentProduct.unitPrice : '',
-        quantity: currentProduct ? currentProduct.quantity || 0 : 0
+        quantity: currentProduct ? currentProduct.quantity || 0 : 0,
+        category: currentProduct ? currentProduct.category || 'Product' : 'Product',
+        taxRate: currentProduct ? currentProduct.taxRate || 0 : 0,
+        salesRep: currentProduct ? currentProduct.salesRep || '' : '',
+        status: currentProduct ? currentProduct.status || 'Active' : 'Active'
     });
 
     const [error, setError] = useState('');
+    const [isNewSalesRep, setIsNewSalesRep] = useState(false);
 
     const handleChange = (e) => {
         setFormData({
@@ -49,7 +54,22 @@ const ProductForm = ({ currentProduct, setEditing, fetchProducts }) => {
             
             <form onSubmit={handleSubmit} className="form">
                 <div className="form-group">
-                    <label>Product Name *</label>
+                    <label>Category *</label>
+                    <select
+                        name="category"
+                        value={formData.category}
+                        onChange={handleChange}
+                        required
+                        className="input-field"
+                    >
+                        <option value="Product">Product</option>
+                        <option value="Service">Service</option>
+                        <option value="Software">Software</option>
+                    </select>
+                </div>
+                
+                <div className="form-group">
+                    <label>Item / Name *</label>
                     <input
                         type="text"
                         name="name"
@@ -57,7 +77,19 @@ const ProductForm = ({ currentProduct, setEditing, fetchProducts }) => {
                         onChange={handleChange}
                         required
                         className="input-field"
-                        placeholder="e.g. ASTA Toner"
+                        placeholder="e.g. Laptop, Web Development..."
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>Reference Number / SKU</label>
+                    <input
+                        type="text"
+                        name="referenceNumber"
+                        value={formData.referenceNumber}
+                        onChange={handleChange}
+                        className="input-field"
+                        placeholder="e.g. SKU-1002"
                     />
                 </div>
 
@@ -71,6 +103,50 @@ const ProductForm = ({ currentProduct, setEditing, fetchProducts }) => {
                         className="input-field"
                         placeholder="e.g. PO-2023-001"
                     />
+                </div>
+                
+                <div className="form-group">
+                    <label>Sales Representative</label>
+                    {!isNewSalesRep ? (
+                        <select
+                            name="salesRep"
+                            value={formData.salesRep}
+                            onChange={(e) => {
+                                if (e.target.value === 'new') {
+                                    setIsNewSalesRep(true);
+                                    setFormData({...formData, salesRep: ''});
+                                } else {
+                                    handleChange(e);
+                                }
+                            }}
+                            className="input-field"
+                        >
+                            <option value="">Select Sales Representative ▼</option>
+                            <option value="Kasun Perera">Kasun Perera</option>
+                            <option value="Nimal Fernando">Nimal Fernando</option>
+                            <option value="Amal Silva">Amal Silva</option>
+                            <option value="new">+ New Sales Representative</option>
+                        </select>
+                    ) : (
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                name="salesRep"
+                                value={formData.salesRep}
+                                onChange={handleChange}
+                                className="input-field"
+                                placeholder="Enter New Sales Representative Name"
+                                autoFocus
+                            />
+                            <button 
+                                type="button" 
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setIsNewSalesRep(false)}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="form-group">
@@ -110,6 +186,32 @@ const ProductForm = ({ currentProduct, setEditing, fetchProducts }) => {
                         className="input-field"
                         placeholder="e.g. 100"
                     />
+                </div>
+
+                <div className="form-group">
+                    <label>Tax/VAT (%)</label>
+                    <input
+                        type="number"
+                        step="0.1"
+                        name="taxRate"
+                        value={formData.taxRate}
+                        onChange={handleChange}
+                        className="input-field"
+                        placeholder="e.g. 18"
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>Status</label>
+                    <select
+                        name="status"
+                        value={formData.status}
+                        onChange={handleChange}
+                        className="input-field"
+                    >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
                 </div>
                 
                 <div className="form-actions">

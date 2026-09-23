@@ -17,6 +17,11 @@ const settingsSchema = new mongoose.Schema({
     telephone: {
         type: String,
         required: false,
+    },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company',
+        required: true,
     }
 }, {
     timestamps: true

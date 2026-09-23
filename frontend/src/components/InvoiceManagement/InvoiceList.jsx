@@ -3,7 +3,7 @@ import { getInvoices, deleteInvoice } from '../../services/api';
 import CreateInvoice from './CreateInvoice';
 import InvoicePrint from './InvoicePrint';
 import { Plus, FileText, Printer, Trash2, Edit } from 'lucide-react';
-import { getSettings, getInvoiceById } from '../../services/api';
+import { getCompany, getInvoiceById } from '../../services/api';
 
 const InvoiceList = () => {
     const [invoices, setInvoices] = useState([]);
@@ -47,11 +47,19 @@ const InvoiceList = () => {
             const invoiceRes = await getInvoiceById(invoiceId);
             let currentSettings = settings;
             
-            // Fetch settings if not already loaded
+            // Fetch settings (active company details) if not already loaded
             if (!currentSettings) {
-                const settingsRes = await getSettings();
-                currentSettings = settingsRes.data;
-                setSettings(currentSettings);
+                const activeCompanyId = localStorage.getItem('activeCompanyId');
+                if (activeCompanyId) {
+                    const compRes = await getCompany(activeCompanyId);
+                    currentSettings = {
+                        companyName: compRes.data.name,
+                        address: compRes.data.address,
+                        tinNumber: compRes.data.tinNo,
+                        telephone: compRes.data.telephoneNo
+                    };
+                    setSettings(currentSettings);
+                }
             }
             
             setPrintingInvoice({

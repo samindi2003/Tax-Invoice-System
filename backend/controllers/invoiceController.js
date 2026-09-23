@@ -1,12 +1,24 @@
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
 
+const getCompanyId = (req, res) => {
+    const companyId = req.headers['company-id'];
+    if (!companyId) {
+        res.status(400).json({ message: 'Company ID is required in headers' });
+        return null;
+    }
+    return companyId;
+};
+
 // @desc    Get all invoices
 // @route   GET /api/invoices
 // @access  Public
 const getInvoices = async (req, res) => {
+    const companyId = getCompanyId(req, res);
+    if (!companyId) return;
+
     try {
-        const invoices = await Invoice.find()
+        const invoices = await Invoice.find({ companyId })
             .populate('customer', 'name tinNo')
             .sort({ createdAt: -1 });
         res.json(invoices);
@@ -19,8 +31,11 @@ const getInvoices = async (req, res) => {
 // @route   GET /api/invoices/:id
 // @access  Public
 const getInvoiceById = async (req, res) => {
+    const companyId = getCompanyId(req, res);
+    if (!companyId) return;
+
     try {
-        const invoice = await Invoice.findById(req.params.id)
+        const invoice = await Invoice.findOne({ _id: req.params.id, companyId })
             .populate('customer')
             .populate('products.product');
 
@@ -38,8 +53,11 @@ const getInvoiceById = async (req, res) => {
 // @route   POST /api/invoices
 // @access  Public
 const createInvoice = async (req, res) => {
+    const companyId = getCompanyId(req, res);
+    if (!companyId) return;
+
     try {
-        const { customer, products, date, invoiceNo: manualInvoiceNo, poNumber } = req.body;
+        const { customer, products, date, invoiceNo: manualInvoiceNo, poNumber, salesRep } = req.body;
 
         if (!products || products.length === 0) {
             return res.status(400).json({ message: 'No invoice items' });
@@ -48,16 +66,16 @@ const createInvoice = async (req, res) => {
         // Generate Invoice Number if not provided
         let finalInvoiceNo = manualInvoiceNo;
         if (!finalInvoiceNo) {
-            const count = await Invoice.countDocuments();
+            const count = await Invoice.countDocuments({ companyId });
             finalInvoiceNo = `INV-${String(count + 1).padStart(4, '0')}`;
         }
 
         // Validate products and calculate amounts server-side for security
         let subtotal = 0;
         const validatedProducts = await Promise.all(products.map(async (item) => {
-            const product = await Product.findById(item.product);
+            const product = await Product.findOne({ _id: item.product, companyId });
             if (!product) {
-                throw new Error(`Product not found: ${item.product}`);
+                throw new Error(`Product not found or does not belong to this company: ${item.product}`);
             }
             
             const amount = item.quantity * product.unitPrice;
@@ -75,8 +93,10 @@ const createInvoice = async (req, res) => {
         const grandTotal = subtotal + vatAmount;
 
         const invoice = new Invoice({
+            companyId,
             invoiceNo: finalInvoiceNo,
             poNumber,
+            salesRep,
             date: date || Date.now(),
             customer,
             products: validatedProducts,
@@ -97,8 +117,11 @@ const createInvoice = async (req, res) => {
 // @route   DELETE /api/invoices/:id
 // @access  Public
 const deleteInvoice = async (req, res) => {
+    const companyId = getCompanyId(req, res);
+    if (!companyId) return;
+
     try {
-        const invoice = await Invoice.findByIdAndDelete(req.params.id);
+        const invoice = await Invoice.findOneAndDelete({ _id: req.params.id, companyId });
         if (invoice) {
             res.status(200).json({ message: 'Invoice removed' });
         } else {
@@ -113,14 +136,17 @@ const deleteInvoice = async (req, res) => {
 // @route   PUT /api/invoices/:id
 // @access  Public
 const updateInvoice = async (req, res) => {
+    const companyId = getCompanyId(req, res);
+    if (!companyId) return;
+
     try {
-        const { customer, products, date, invoiceNo: manualInvoiceNo, poNumber } = req.body;
+        const { customer, products, date, invoiceNo: manualInvoiceNo, poNumber, salesRep } = req.body;
 
         if (!products || products.length === 0) {
             return res.status(400).json({ message: 'No invoice items' });
         }
 
-        const invoiceToUpdate = await Invoice.findById(req.params.id);
+        const invoiceToUpdate = await Invoice.findOne({ _id: req.params.id, companyId });
         if (!invoiceToUpdate) {
             return res.status(404).json({ message: 'Invoice not found' });
         }
@@ -128,9 +154,9 @@ const updateInvoice = async (req, res) => {
         // Validate products and calculate amounts server-side for security
         let subtotal = 0;
         const validatedProducts = await Promise.all(products.map(async (item) => {
-            const product = await Product.findById(item.product);
+            const product = await Product.findOne({ _id: item.product, companyId });
             if (!product) {
-                throw new Error(`Product not found: ${item.product}`);
+                throw new Error(`Product not found or does not belong to this company: ${item.product}`);
             }
             
             const amount = item.quantity * product.unitPrice;
@@ -152,6 +178,9 @@ const updateInvoice = async (req, res) => {
         }
         if (poNumber !== undefined) {
             invoiceToUpdate.poNumber = poNumber;
+        }
+        if (salesRep !== undefined) {
+            invoiceToUpdate.salesRep = salesRep;
         }
         invoiceToUpdate.customer = customer;
         invoiceToUpdate.date = date || invoiceToUpdate.date;

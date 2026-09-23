@@ -1,6 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { getCustomers, getProducts, getSettings, createInvoice, updateInvoice } from '../../services/api';
+import { getCustomers, getProducts, getCompany, createInvoice, updateInvoice } from '../../services/api';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
+
+const SearchableItemSelect = ({ items, value, onChange, disabled }) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const selectedItem = items.find(i => i._id === value);
+    
+    useEffect(() => {
+        if (selectedItem && !isOpen) {
+            setSearch(selectedItem.name);
+        }
+    }, [selectedItem, isOpen]);
+
+    const filteredItems = items.filter(i => 
+        i.name.toLowerCase().includes(search.toLowerCase()) || 
+        (i.category && i.category.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    return (
+        <div style={{ position: 'relative' }}>
+            <input 
+                type="text" 
+                className={`input-field py-1 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                placeholder={disabled ? "Select category first..." : "Search item (e.g. web)..."}
+                value={isOpen ? search : (selectedItem ? selectedItem.name : '')}
+                disabled={disabled}
+                onChange={(e) => {
+                    setSearch(e.target.value);
+                    setIsOpen(true);
+                }}
+                onFocus={() => {
+                    setSearch('');
+                    setIsOpen(true);
+                }}
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+            />
+            {isOpen && (
+                <div style={{ 
+                    position: 'absolute', zIndex: 50, width: '100%', backgroundColor: 'white', 
+                    border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 
+                    maxHeight: '200px', overflowY: 'auto', borderRadius: '0.375rem', marginTop: '4px' 
+                }}>
+                    {filteredItems.map(item => (
+                        <div 
+                            key={item._id} 
+                            style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', textAlign: 'left' }}
+                            onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
+                            onClick={() => {
+                                onChange(item._id);
+                                setIsOpen(false);
+                            }}
+                            className="hover:bg-slate-50"
+                        >
+                            <div className="font-bold text-sm text-slate-800">
+                                {item.name} 
+                                <span className="text-xs ml-2 px-1 rounded bg-blue-100 text-blue-800" style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>{item.category}</span>
+                            </div>
+                        </div>
+                    ))}
+                    {filteredItems.length === 0 && <div style={{ padding: '8px', fontSize: '0.875rem', color: '#64748b' }}>No items found</div>}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
     const [customers, setCustomers] = useState([]);
@@ -8,7 +73,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
     const [settings, setSettings] = useState(null);
 
     const [selectedCustomer, setSelectedCustomer] = useState('');
-    const [invoiceItems, setInvoiceItems] = useState([{ product: '', quantity: 1, unitPrice: 0, amount: 0 }]);
+    const [invoiceItems, setInvoiceItems] = useState([{ category: '', product: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [invoiceNo, setInvoiceNo] = useState('');
     const [poNumber, setPoNumber] = useState('');
@@ -32,26 +97,36 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                 const prod = productsList.find(p => p._id === prodId);
                 const uPrice = prod ? prod.unitPrice : 0;
                 return {
+                    category: prod ? prod.category : '',
                     product: prodId,
                     quantity: item.quantity,
                     unitPrice: uPrice,
-                    amount: item.quantity * uPrice
+                    amount: item.quantity * uPrice,
+                    taxRate: prod ? prod.taxRate : 0
                 };
             });
-            setInvoiceItems(mappedItems.length > 0 ? mappedItems : [{ product: '', quantity: 1, unitPrice: 0, amount: 0 }]);
+            setInvoiceItems(mappedItems.length > 0 ? mappedItems : [{ category: '', product: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
         }
     }, [invoiceToEdit, productsList]);
 
     const fetchInitialData = async () => {
         try {
-            const [custRes, prodRes, setRes] = await Promise.all([
+            const activeCompanyId = localStorage.getItem('activeCompanyId');
+            if (!activeCompanyId) throw new Error('No active company selected');
+
+            const [custRes, prodRes, compRes] = await Promise.all([
                 getCustomers(),
                 getProducts(),
-                getSettings()
+                getCompany(activeCompanyId)
             ]);
             setCustomers(custRes.data);
             setProductsList(prodRes.data);
-            setSettings(setRes.data);
+            setSettings({
+                companyName: compRes.data.name,
+                address: compRes.data.address,
+                tinNumber: compRes.data.tinNo,
+                telephone: compRes.data.telephoneNo
+            });
         } catch (error) {
             console.error('Error fetching initial data:', error);
             setError('Failed to load customers or products. Ensure the database is connected.');
@@ -59,7 +134,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
     };
 
     const handleAddItem = () => {
-        setInvoiceItems([...invoiceItems, { product: '', quantity: 1, unitPrice: 0, amount: 0 }]);
+        setInvoiceItems([...invoiceItems, { category: '', product: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
     };
 
     const handleRemoveItem = (index) => {
@@ -71,10 +146,19 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
         const newItems = [...invoiceItems];
         newItems[index][field] = value;
 
+        if (field === 'category') {
+            // Reset product selection if category changes
+            newItems[index].product = '';
+            newItems[index].unitPrice = 0;
+            newItems[index].amount = 0;
+            newItems[index].taxRate = 0;
+        }
+
         if (field === 'product') {
             const selectedProd = productsList.find(p => p._id === value);
             if (selectedProd) {
                 newItems[index].unitPrice = selectedProd.unitPrice || 0;
+                newItems[index].taxRate = selectedProd.taxRate || 0;
                 newItems[index].amount = newItems[index].quantity * (selectedProd.unitPrice || 0);
             }
         }
@@ -88,7 +172,9 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
 
     // Calculations
     const subtotal = invoiceItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const vatAmount = subtotal * 0.18;
+    // Modified VAT Calculation: Uses item specific tax rate if available, else fallback to 18% if no items have tax, wait, 
+    // Usually it's standard 18% on total OR sum of item taxes. For simplicity, let's just sum individual item taxes.
+    const vatAmount = invoiceItems.reduce((sum, item) => sum + (item.amount * (item.taxRate / 100 || 0)), 0) || (subtotal * 0.18);
     const grandTotal = subtotal + vatAmount;
 
     const handleSubmit = async (e) => {
@@ -203,7 +289,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                     <table className="modern-table mb-4">
                         <thead>
                             <tr>
-                                <th>Product / Description</th>
+                                <th width="40%">Item / Search</th>
                                 <th width="15%">Quantity</th>
                                 <th width="20%">Unit Price (LKR)</th>
                                 <th width="20%">Amount (LKR)</th>
@@ -211,20 +297,34 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {invoiceItems.map((item, index) => (
-                                <tr key={index}>
+                            {invoiceItems.map((item, index) => {
+                                const selectedProd = productsList.find(p => p._id === item.product);
+                                return (
+                                <tr key={index} style={{ verticalAlign: 'top' }}>
                                     <td>
-                                        <select 
-                                            className="input-field py-1"
-                                            value={item.product}
-                                            onChange={(e) => handleItemChange(index, 'product', e.target.value)}
-                                            required
+                                        <select
+                                            className="input-field py-1 mb-2"
+                                            value={item.category || ''}
+                                            onChange={(e) => handleItemChange(index, 'category', e.target.value)}
                                         >
-                                            <option value="">Select Product...</option>
-                                            {productsList.map(p => (
-                                                <option key={p._id} value={p._id}>{p.name} - {p.referenceNo}</option>
-                                            ))}
+                                            <option value="">1. Select Category...</option>
+                                            <option value="Product">Product</option>
+                                            <option value="Service">Professional Service</option>
+                                            <option value="Software">Software</option>
                                         </select>
+                                        <SearchableItemSelect 
+                                            items={item.category ? productsList.filter(p => p.category === item.category) : []} 
+                                            value={item.product} 
+                                            onChange={(val) => handleItemChange(index, 'product', val)}
+                                            disabled={!item.category}
+                                        />
+                                        {selectedProd && (
+                                            <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f8fafc', borderRadius: '4px', fontSize: '0.8rem', color: '#475569', textAlign: 'left' }}>
+                                                <div style={{ marginBottom: '4px' }}><strong>Category:</strong> {selectedProd.category}</div>
+                                                <div style={{ marginBottom: '4px' }}><strong>Desc:</strong> {selectedProd.description}</div>
+                                                <div><strong>VAT/Tax:</strong> {selectedProd.taxRate > 0 ? `${selectedProd.taxRate}%` : 'None'}</div>
+                                            </div>
+                                        )}
                                     </td>
                                     <td>
                                         <input 
@@ -239,15 +339,15 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                                     <td className="text-right">
                                         <input 
                                             type="number"
-                                            className="input-field py-1 text-right bg-transparent border-none"
+                                            className="input-field py-1 text-right"
                                             value={item.unitPrice}
-                                            readOnly
+                                            onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
                                         />
                                     </td>
-                                    <td className="text-right font-medium">
+                                    <td className="text-right font-medium" style={{ paddingTop: '10px' }}>
                                         {formatCurrency(item.amount)}
                                     </td>
-                                    <td>
+                                    <td style={{ paddingTop: '8px' }}>
                                         {invoiceItems.length > 1 && (
                                             <button 
                                                 type="button" 
@@ -259,7 +359,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                                         )}
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                     <button type="button" className="btn btn-outline btn-sm" onClick={handleAddItem}>

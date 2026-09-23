@@ -8,6 +8,8 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const companyRoutes = require('./routes/companyRoutes');
+const salesRepRoutes = require('./routes/salesRepRoutes');
 
 dotenv.config();
 
@@ -25,6 +27,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/companies', companyRoutes);
+app.use('/api/salesreps', salesRepRoutes);
 
 // Database connection
 const connectDB = async () => {

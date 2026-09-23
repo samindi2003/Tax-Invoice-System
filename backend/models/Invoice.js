@@ -4,7 +4,6 @@ const invoiceSchema = new mongoose.Schema({
     invoiceNo: {
         type: String,
         required: true,
-        unique: true,
     },
     date: {
         type: Date,
@@ -12,6 +11,16 @@ const invoiceSchema = new mongoose.Schema({
     },
     poNumber: {
         type: String,
+        required: false,
+    },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company',
+        required: true,
+    },
+    salesRep: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SalesRep',
         required: false,
     },
     customer: {
@@ -64,5 +73,7 @@ const invoiceSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+invoiceSchema.index({ invoiceNo: 1, companyId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

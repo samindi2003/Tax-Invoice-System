@@ -16,6 +16,15 @@ const customerSchema = new mongoose.Schema({
     telephoneNo: {
         type: String,
         required: false,
+    },
+    email: {
+        type: String,
+        required: false,
+    },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company',
+        required: true,
     }
 }, {
     timestamps: true

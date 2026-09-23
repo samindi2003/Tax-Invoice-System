@@ -6,20 +6,28 @@ const Invoice = require('../models/Invoice');
 // @route   GET /api/dashboard/summary
 // @access  Public (for now)
 const getDashboardSummary = async (req, res) => {
-    try {
-        // Attempt to fetch real counts if DB is up
-        const customerCount = await Customer.countDocuments();
-        const productCount = await Product.countDocuments();
+    const companyId = req.headers['company-id'];
+    if (!companyId) {
+        return res.status(400).json({ message: 'Company ID is required in headers' });
+    }
 
-        // Calculate Invoice metrics
-        const invoices = await Invoice.find().populate('customer', 'name');
+    try {
+        // Attempt to fetch real counts scoped to companyId
+        const customerCount = await Customer.countDocuments({ companyId });
+        const productCount = await Product.countDocuments({ companyId });
+
+        // Calculate Invoice metrics scoped to companyId
+        const invoices = await Invoice.find({ companyId }).populate('customer', 'name');
         
         const invoicesIssued = invoices.length;
         const totalRevenue = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
         const totalVat = invoices.reduce((sum, inv) => sum + inv.vatAmount, 0);
+        
+        const paidInvoices = invoices.filter(inv => inv.status === 'Paid').length;
+        const pendingInvoices = invoices.filter(inv => inv.status === 'Pending').length;
 
         // Get 4 most recent invoices for the table
-        const recentInvoices = await Invoice.find()
+        const recentInvoices = await Invoice.find({ companyId })
             .sort({ createdAt: -1 })
             .limit(4)
             .populate('customer', 'name');
@@ -54,7 +62,9 @@ const getDashboardSummary = async (req, res) => {
                 totalRevenue,
                 totalVat,
                 invoicesIssued,
-                activeCustomers: customerCount || 0
+                activeCustomers: customerCount || 0,
+                paidInvoices,
+                pendingInvoices
             },
             recentInvoices: mappedRecent,
             chartData
@@ -67,7 +77,9 @@ const getDashboardSummary = async (req, res) => {
                 totalRevenue: 0,
                 totalVat: 0,
                 invoicesIssued: 0,
-                activeCustomers: 0
+                activeCustomers: 0,
+                paidInvoices: 0,
+                pendingInvoices: 0
             },
             recentInvoices: []
         });

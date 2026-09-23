@@ -9,6 +9,14 @@ const api = axios.create({
     },
 });
 
+api.interceptors.request.use((config) => {
+    const companyId = localStorage.getItem('activeCompanyId');
+    if (companyId) {
+        config.headers['company-id'] = companyId;
+    }
+    return config;
+}, (error) => Promise.reject(error));
+
 export const getCustomers = () => api.get('/customers');
 export const getCustomer = (id) => api.get(`/customers/${id}`);
 export const createCustomer = (customerData) => api.post('/customers', customerData);
@@ -40,5 +48,13 @@ export const deleteInvoice = (id) => api.delete(`/invoices/${id}`);
 export const login = (credentials) => api.post('/auth/login', credentials);
 export const getUserProfile = () => api.get('/auth/profile');
 export const updatePassword = (passwords) => api.put('/auth/password', passwords);
+
+// Companies
+export const getCompanies = () => api.get('/companies');
+export const getCompany = (id) => api.get(`/companies/${id}`);
+export const createCompany = (companyData) => api.post('/companies', companyData);
+export const updateCompany = (id, companyData) => api.put(`/companies/${id}`, companyData);
+export const deleteCompany = (id) => api.delete(`/companies/${id}`);
+export const verifyCompanyPassword = (id, password) => api.post(`/companies/${id}/verify`, { password });
 
 export default api;
