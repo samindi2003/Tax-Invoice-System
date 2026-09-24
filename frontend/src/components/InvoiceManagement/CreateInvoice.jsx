@@ -73,7 +73,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
     const [settings, setSettings] = useState(null);
 
     const [selectedCustomer, setSelectedCustomer] = useState('');
-    const [invoiceItems, setInvoiceItems] = useState([{ category: '', product: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
+    const [invoiceItems, setInvoiceItems] = useState([{ category: '', product: '', customDescription: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [invoiceNo, setInvoiceNo] = useState('');
     const [poNumber, setPoNumber] = useState('');
@@ -99,13 +99,14 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                 return {
                     category: prod ? prod.category : '',
                     product: prodId,
+                    customDescription: item.customDescription || (prod ? prod.description : ''),
                     quantity: item.quantity,
                     unitPrice: uPrice,
                     amount: item.quantity * uPrice,
                     taxRate: prod ? prod.taxRate : 0
                 };
             });
-            setInvoiceItems(mappedItems.length > 0 ? mappedItems : [{ category: '', product: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
+            setInvoiceItems(mappedItems.length > 0 ? mappedItems : [{ category: '', product: '', customDescription: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
         }
     }, [invoiceToEdit, productsList]);
 
@@ -134,7 +135,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
     };
 
     const handleAddItem = () => {
-        setInvoiceItems([...invoiceItems, { category: '', product: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
+        setInvoiceItems([...invoiceItems, { category: '', product: '', customDescription: '', quantity: 1, unitPrice: 0, amount: 0, taxRate: 0 }]);
     };
 
     const handleRemoveItem = (index) => {
@@ -149,6 +150,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
         if (field === 'category') {
             // Reset product selection if category changes
             newItems[index].product = '';
+            newItems[index].customDescription = '';
             newItems[index].unitPrice = 0;
             newItems[index].amount = 0;
             newItems[index].taxRate = 0;
@@ -157,6 +159,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
         if (field === 'product') {
             const selectedProd = productsList.find(p => p._id === value);
             if (selectedProd) {
+                newItems[index].customDescription = selectedProd.description || '';
                 newItems[index].unitPrice = selectedProd.unitPrice || 0;
                 newItems[index].taxRate = selectedProd.taxRate || 0;
                 newItems[index].amount = newItems[index].quantity * (selectedProd.unitPrice || 0);
@@ -190,6 +193,7 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                 poNumber: poNumber.trim() || undefined,
                 products: invoiceItems.map(item => ({
                     product: item.product,
+                    customDescription: item.customDescription,
                     quantity: Number(item.quantity)
                 }))
             };
@@ -320,8 +324,16 @@ const CreateInvoice = ({ setCreating, fetchInvoices, invoiceToEdit }) => {
                                         />
                                         {selectedProd && (
                                             <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f8fafc', borderRadius: '4px', fontSize: '0.8rem', color: '#475569', textAlign: 'left' }}>
-                                                <div style={{ marginBottom: '4px' }}><strong>Category:</strong> {selectedProd.category}</div>
-                                                <div style={{ marginBottom: '4px' }}><strong>Desc:</strong> {selectedProd.description}</div>
+                                                <div style={{ marginBottom: '4px' }}>
+                                                    <strong>Custom Description (Editable):</strong>
+                                                    <textarea 
+                                                        className="input-field" 
+                                                        style={{ marginTop: '4px', padding: '4px 8px', minHeight: '60px', width: '100%', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}
+                                                        value={item.customDescription || ''}
+                                                        onChange={(e) => handleItemChange(index, 'customDescription', e.target.value)}
+                                                        placeholder="Type description line by line..."
+                                                    />
+                                                </div>
                                                 <div><strong>VAT/Tax:</strong> {selectedProd.taxRate > 0 ? `${selectedProd.taxRate}%` : 'None'}</div>
                                             </div>
                                         )}

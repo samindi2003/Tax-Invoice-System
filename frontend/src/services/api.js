@@ -43,6 +43,7 @@ export const createInvoice = (invoiceData) => api.post('/invoices', invoiceData)
 export const updateInvoice = (id, invoiceData) => api.put(`/invoices/${id}`, invoiceData);
 export const getInvoiceById = (id) => api.get(`/invoices/${id}`);
 export const deleteInvoice = (id) => api.delete(`/invoices/${id}`);
+export const emailInvoice = (id, payload) => api.post(`/invoices/${id}/email`, payload);
 
 // Auth
 export const login = (credentials) => api.post('/auth/login', credentials);

@@ -1,16 +1,83 @@
-import React, { useEffect, useRef } from 'react';
-import { X, Printer, Download } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Printer, Download, Mail, Send } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import { emailInvoice } from '../../services/api';
 import './InvoicePrint.css';
 
-const InvoicePrint = ({ invoice, settings, setPrinting }) => {
+const InvoicePrint = ({ invoice, settings, setPrinting, autoEmail }) => {
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [emailForm, setEmailForm] = useState({ to: '', subject: '', body: '' });
+    const [isSending, setIsSending] = useState(false);
+    const [emailMessage, setEmailMessage] = useState(null);
+
+    const handleOpenEmailModal = () => {
+        setEmailForm({
+            to: invoice.customer?.email || '',
+            subject: settings?.email?.defaultSubject || `Invoice ${invoice.invoiceNo} from ${settings?.companyName || 'Us'}`,
+            body: settings?.email?.defaultBody || `Dear ${invoice.customer?.name},\n\nPlease find attached the invoice ${invoice.invoiceNo}.\n\nThank you,\n${settings?.companyName || 'Us'}`
+        });
+        setShowEmailModal(true);
+        setEmailMessage(null);
+    };
+
     useEffect(() => {
         // Prevent scrolling on body when overlay is active
         document.body.style.overflow = 'hidden';
+        
+        if (autoEmail) {
+            handleOpenEmailModal();
+        }
+
         return () => {
             document.body.style.overflow = 'auto';
         };
-    }, []);
+    }, [autoEmail]);
+
+    const handleSendEmail = async (e) => {
+        e.preventDefault();
+        setIsSending(true);
+        setEmailMessage(null);
+        try {
+            const element = document.querySelector('.print-document');
+            const opt = {
+                margin:       0,
+                filename:     `Invoice-${invoice.invoiceNo}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, windowWidth: 1024 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            // Generate PDF as base64 string
+            const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+            
+            await emailInvoice(invoice._id, {
+                to: emailForm.to,
+                subject: emailForm.subject,
+                body: emailForm.body,
+                pdfBase64: pdfBase64
+            });
+            
+            setEmailMessage({ type: 'success', text: 'Email sent successfully!' });
+            setTimeout(() => setShowEmailModal(false), 2000);
+        } catch (err) {
+            console.error('Email API Error:', err);
+            let errorMsg = 'Failed to send email';
+            if (err.response) {
+                if (err.response.data && err.response.data.message) {
+                    errorMsg = err.response.data.message;
+                } else if (err.response.status === 413) {
+                    errorMsg = 'PDF is too large to send.';
+                } else {
+                    errorMsg = `Server error: ${err.response.status}`;
+                }
+            } else if (err.message) {
+                errorMsg = err.message;
+            }
+            setEmailMessage({ type: 'error', text: errorMsg });
+        } finally {
+            setIsSending(false);
+        }
+    };
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-LK', { minimumFractionDigits: 2 }).format(amount);
@@ -76,6 +143,9 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
     return (
         <div className="print-overlay">
             <div className="print-actions">
+                <button className="btn btn-secondary" onClick={handleOpenEmailModal} style={{ marginRight: '10px' }}>
+                    <Mail size={18} /> Email Invoice
+                </button>
                 <button className="btn btn-primary" onClick={handleDownloadPDF} style={{ marginRight: '10px' }}>
                     <Download size={18} /> Get PDF
                 </button>
@@ -182,7 +252,14 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
                         <tbody>
                             {invoice.products.map((item, index) => (
                                 <tr key={index}>
-                                    <td style={{ whiteSpace: 'pre-wrap' }}>{item.product?.name} {item.product?.description ? `- ${item.product.description}` : ''}</td>
+                                    <td style={{ whiteSpace: 'pre-wrap' }}>
+                                        <div className="font-bold">{item.product?.name}</div>
+                                        {item.customDescription && (
+                                            <div style={{ marginTop: '4px', color: '#475569', fontSize: '0.9em' }}>
+                                                {item.customDescription}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="col-qty">{item.quantity}</td>
                                     <td className="col-price">{formatCurrency(item.unitPrice)}</td>
                                     <td className="col-amount">{formatCurrency(item.amount)}</td>
@@ -241,6 +318,79 @@ const InvoicePrint = ({ invoice, settings, setPrinting }) => {
                 </div>
 
             </div>
+
+            {/* Email Modal Overlay */}
+            {showEmailModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div style={{
+                        backgroundColor: '#fff', borderRadius: '8px', padding: '24px',
+                        width: '90%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                        color: '#334155'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>Send Email to {invoice.customer?.name}</h3>
+                            <button onClick={() => setShowEmailModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {emailMessage && (
+                            <div style={{ 
+                                padding: '12px', marginBottom: '16px', borderRadius: '6px',
+                                backgroundColor: emailMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+                                color: emailMessage.type === 'success' ? '#166534' : '#991b1b'
+                            }}>
+                                {emailMessage.text}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSendEmail}>
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600 }}>To Email Address</label>
+                                <input 
+                                    type="email" 
+                                    className="input-field" 
+                                    value={emailForm.to} 
+                                    onChange={e => setEmailForm({...emailForm, to: e.target.value})} 
+                                    required 
+                                />
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600 }}>Subject</label>
+                                <input 
+                                    type="text" 
+                                    className="input-field" 
+                                    value={emailForm.subject} 
+                                    onChange={e => setEmailForm({...emailForm, subject: e.target.value})} 
+                                    required 
+                                />
+                            </div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600 }}>Message Body</label>
+                                <textarea 
+                                    className="input-field" 
+                                    rows="6"
+                                    value={emailForm.body} 
+                                    onChange={e => setEmailForm({...emailForm, body: e.target.value})} 
+                                    required 
+                                ></textarea>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowEmailModal(false)} disabled={isSending}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={isSending}>
+                                    {isSending ? 'Sending...' : <><Send size={16} /> Send Email</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

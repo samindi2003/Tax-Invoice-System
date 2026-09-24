@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CustomerList from './components/CustomerManagement/CustomerList';
 import ProductList from './components/ProductManagement/ProductList';
-import CompanyProfile from './components/Settings/CompanyProfile';
+import SettingsLayout from './components/Settings/SettingsLayout';
 import CompanyList from './components/CompanyManagement/CompanyList';
 import CompanySelector from './components/CompanyManagement/CompanySelector';
 import Login from './components/Auth/Login';
@@ -76,7 +76,7 @@ function App() {
       case 'invoices':
         return <InvoiceList />;
       case 'settings':
-        return <CompanyProfile />;
+        return <SettingsLayout />;
       case 'user-profile':
         return <UserProfile />;
       case 'change-password':

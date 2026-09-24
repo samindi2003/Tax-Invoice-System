@@ -34,6 +34,10 @@ const invoiceSchema = new mongoose.Schema({
             ref: 'Product',
             required: true,
         },
+        customDescription: {
+            type: String,
+            required: false,
+        },
         quantity: {
             type: Number,
             required: true,

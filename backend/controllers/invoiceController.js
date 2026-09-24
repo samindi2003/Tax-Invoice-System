@@ -1,5 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
+const Settings = require('../models/Settings');
+const nodemailer = require('nodemailer');
 
 const getCompanyId = (req, res) => {
     const companyId = req.headers['company-id'];
@@ -67,7 +69,9 @@ const createInvoice = async (req, res) => {
         let finalInvoiceNo = manualInvoiceNo;
         if (!finalInvoiceNo) {
             const count = await Invoice.countDocuments({ companyId });
-            finalInvoiceNo = `INV-${String(count + 1).padStart(4, '0')}`;
+            const settings = await Settings.findOne({ companyId });
+            const prefix = settings?.invoice?.prefix || 'INV-';
+            finalInvoiceNo = `${prefix}${String(count + 1).padStart(4, '0')}`;
         }
 
         // Validate products and calculate amounts server-side for security
@@ -83,13 +87,16 @@ const createInvoice = async (req, res) => {
 
             return {
                 product: product._id,
+                customDescription: item.customDescription,
                 quantity: item.quantity,
                 unitPrice: product.unitPrice,
                 amount: amount
             };
         }));
 
-        const vatAmount = subtotal * 0.18; // 18% VAT
+        const settings = await Settings.findOne({ companyId });
+        const taxRate = settings?.taxVat?.defaultRate || 0;
+        const vatAmount = subtotal * (taxRate / 100);
         const grandTotal = subtotal + vatAmount;
 
         const invoice = new Invoice({
@@ -164,13 +171,16 @@ const updateInvoice = async (req, res) => {
 
             return {
                 product: product._id,
+                customDescription: item.customDescription,
                 quantity: item.quantity,
                 unitPrice: product.unitPrice,
                 amount: amount
             };
         }));
 
-        const vatAmount = subtotal * 0.18; // 18% VAT
+        const settings = await Settings.findOne({ companyId });
+        const taxRate = settings?.taxVat?.defaultRate || 0;
+        const vatAmount = subtotal * (taxRate / 100);
         const grandTotal = subtotal + vatAmount;
 
         if (manualInvoiceNo) {
@@ -196,10 +206,75 @@ const updateInvoice = async (req, res) => {
     }
 };
 
+// @desc    Email invoice as PDF
+// @route   POST /api/invoices/:id/email
+// @access  Public
+const emailInvoice = async (req, res) => {
+    const companyId = getCompanyId(req, res);
+    if (!companyId) return;
+
+    try {
+        const { to, subject, body, pdfBase64 } = req.body;
+        
+        if (!to || !pdfBase64) {
+            return res.status(400).json({ message: 'Recipient email (to) and pdfBase64 are required' });
+        }
+
+        // Get company settings for SMTP credentials
+        const settings = await Settings.findOne({ companyId });
+        if (!settings || !settings.email || !settings.email.smtpHost || !settings.email.smtpUser || !settings.email.smtpPass) {
+            return res.status(400).json({ message: 'SMTP email settings are not configured for this company. Please configure them in Settings.' });
+        }
+
+        // Configure Nodemailer
+        const transporter = nodemailer.createTransport({
+            host: settings.email.smtpHost,
+            port: settings.email.smtpHost.includes('gmail') ? 465 : 587,
+            secure: settings.email.smtpHost.includes('gmail'), // true for 465, false for 587
+            auth: {
+                user: settings.email.smtpUser,
+                pass: settings.email.smtpPass
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+
+        // Convert base64 PDF string to buffer
+        // Split on the first comma to safely grab only the raw base64 data, ignoring any data URI prefixes
+        let base64Data = pdfBase64;
+        if (pdfBase64.includes(',')) {
+            base64Data = pdfBase64.split(',')[1];
+        }
+        const pdfBuffer = Buffer.from(base64Data, 'base64');
+
+        // Send mail
+        const info = await transporter.sendMail({
+            from: `"${settings.company?.companyName || 'Invoice System'}" <${settings.email.smtpUser}>`,
+            to: to,
+            subject: subject || settings.email.defaultSubject || 'Your Invoice',
+            text: body || settings.email.defaultBody || 'Please find your invoice attached.',
+            attachments: [
+                {
+                    filename: `Invoice_${req.params.id}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
+                }
+            ]
+        });
+
+        res.status(200).json({ message: 'Email sent successfully', messageId: info.messageId });
+    } catch (error) {
+        console.error('Email error:', error);
+        res.status(500).json({ message: `Failed to send email. Error: ${error.message}` });
+    }
+};
+
 module.exports = {
     getInvoices,
     getInvoiceById,
     createInvoice,
     updateInvoice,
     deleteInvoice,
+    emailInvoice
 };

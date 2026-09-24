@@ -45,6 +45,19 @@ exports.updateCompany = async (req, res) => {
         if (!updatedCompany) {
             return res.status(404).json({ message: 'Company not found' });
         }
+
+        // Sync changes to Settings Profile
+        const Settings = require('../models/Settings');
+        let settings = await Settings.findOne({ companyId: updatedCompany._id });
+        if (settings && settings.company) {
+            settings.company.companyName = updatedCompany.name;
+            settings.company.tinNumber = updatedCompany.tinNo || '';
+            settings.company.address = updatedCompany.address || '';
+            settings.company.telephone = updatedCompany.telephoneNo || '';
+            if (updatedCompany.logo) settings.company.logoUrl = updatedCompany.logo;
+            await settings.save();
+        }
+
         res.status(200).json(updatedCompany);
     } catch (error) {
         res.status(400).json({ message: error.message });

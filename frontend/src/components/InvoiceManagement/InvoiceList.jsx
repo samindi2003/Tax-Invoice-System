@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getInvoices, deleteInvoice } from '../../services/api';
 import CreateInvoice from './CreateInvoice';
 import InvoicePrint from './InvoicePrint';
-import { Plus, FileText, Printer, Trash2, Edit } from 'lucide-react';
+import { Plus, FileText, Printer, Trash2, Edit, Mail } from 'lucide-react';
 import { getCompany, getInvoiceById } from '../../services/api';
 
 const InvoiceList = () => {
@@ -64,11 +64,44 @@ const InvoiceList = () => {
             
             setPrintingInvoice({
                 invoice: invoiceRes.data,
-                settings: currentSettings
+                settings: currentSettings,
+                autoEmail: false
             });
         } catch (error) {
             console.error('Error preparing print view:', error);
             alert('Failed to load invoice details for printing.');
+        }
+    };
+
+    const handleEmailClick = async (invoiceId) => {
+        try {
+            // Fetch full invoice with populated products
+            const invoiceRes = await getInvoiceById(invoiceId);
+            let currentSettings = settings;
+            
+            // Fetch settings (active company details) if not already loaded
+            if (!currentSettings) {
+                const activeCompanyId = localStorage.getItem('activeCompanyId');
+                if (activeCompanyId) {
+                    const compRes = await getCompany(activeCompanyId);
+                    currentSettings = {
+                        companyName: compRes.data.name,
+                        address: compRes.data.address,
+                        tinNumber: compRes.data.tinNo,
+                        telephone: compRes.data.telephoneNo
+                    };
+                    setSettings(currentSettings);
+                }
+            }
+            
+            setPrintingInvoice({
+                invoice: invoiceRes.data,
+                settings: currentSettings,
+                autoEmail: true
+            });
+        } catch (error) {
+            console.error('Error preparing email view:', error);
+            alert('Failed to load invoice details for emailing.');
         }
     };
 
@@ -165,6 +198,14 @@ const InvoiceList = () => {
                                                         <Printer size={18} />
                                                     </button>
                                                     <button 
+                                                        className="btn-icon text-indigo" 
+                                                        title="Email Invoice"
+                                                        style={{ color: '#4f46e5' }}
+                                                        onClick={() => handleEmailClick(invoice._id)}
+                                                    >
+                                                        <Mail size={18} />
+                                                    </button>
+                                                    <button 
                                                         className="btn-icon text-green" 
                                                         title="Edit Invoice"
                                                         onClick={() => handleEditClick(invoice._id)}
@@ -194,6 +235,7 @@ const InvoiceList = () => {
                     invoice={printingInvoice.invoice} 
                     settings={printingInvoice.settings} 
                     setPrinting={() => setPrintingInvoice(null)} 
+                    autoEmail={printingInvoice.autoEmail}
                 />
             )}
         </div>

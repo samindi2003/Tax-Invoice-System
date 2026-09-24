@@ -53,7 +53,7 @@ const CompanySelector = () => {
     return (
         <select 
             className="input-field" 
-            style={{ width: '200px', backgroundColor: 'rgba(255, 255, 255, 0.8)', padding: '0.4rem', borderColor: 'var(--primary)', color: 'var(--text-color)' }}
+            style={{ width: '200px', padding: '0.4rem', borderColor: 'var(--primary)' }}
             value={activeCompanyId} 
             onChange={handleChange}
         >
