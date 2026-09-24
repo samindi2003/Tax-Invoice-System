@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, Download, Mail, Send } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { emailInvoice } from '../../services/api';
@@ -140,7 +141,7 @@ const InvoicePrint = ({ invoice, settings, setPrinting, autoEmail }) => {
         html2pdf().set(opt).from(element).save();
     };
 
-    return (
+    return createPortal(
         <div className="print-overlay">
             <div className="print-actions">
                 <button className="btn btn-secondary" onClick={handleOpenEmailModal} style={{ marginRight: '10px' }}>
@@ -252,10 +253,12 @@ const InvoicePrint = ({ invoice, settings, setPrinting, autoEmail }) => {
                         <tbody>
                             {invoice.products.map((item, index) => (
                                 <tr key={index}>
-                                    <td style={{ whiteSpace: 'pre-wrap' }}>
-                                        <div className="font-bold">{item.product?.name}</div>
+                                    <td style={{ whiteSpace: 'pre-wrap', color: '#000', fontSize: '1em' }}>
+                                        {item.product?.name && (
+                                            <div>{item.product.name}</div>
+                                        )}
                                         {item.customDescription && (
-                                            <div style={{ marginTop: '4px', color: '#475569', fontSize: '0.9em' }}>
+                                            <div style={{ marginTop: item.product?.name ? '4px' : '0' }}>
                                                 {item.customDescription}
                                             </div>
                                         )}
@@ -306,17 +309,18 @@ const InvoicePrint = ({ invoice, settings, setPrinting, autoEmail }) => {
                     No Warranty for: Key Boards, Mouse, Speakers, Power adaptors, Toners, Ink cartridges & Printer heads. For the item is BURN MARKS, PHYSICAL DAMAGES & CORROSION No warranty.
                 </div>
 
-                <div className="print-signatures">
-                    <div className="sig-box">
-                        <div className="sig-line"></div>
-                        <div>Authorized by</div>
-                    </div>
-                    <div className="sig-box">
-                        <div className="sig-line"></div>
-                        <div>Customer Signature</div>
+                <div className="print-signatures-wrapper">
+                    <div className="print-signatures">
+                        <div className="sig-box">
+                            <div className="sig-line"></div>
+                            <div className="sig-title">Authorized by</div>
+                        </div>
+                        <div className="sig-box">
+                            <div className="sig-line"></div>
+                            <div className="sig-title">Customer Signature</div>
+                        </div>
                     </div>
                 </div>
-
             </div>
 
             {/* Email Modal Overlay */}
@@ -391,7 +395,8 @@ const InvoicePrint = ({ invoice, settings, setPrinting, autoEmail }) => {
                     </div>
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 };
 
